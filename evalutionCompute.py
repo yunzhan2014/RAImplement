@@ -34,3 +34,11 @@ def compute_mae(perdict_ri,ri):
             sum_r += np.absolute(perdict_ri[i]-ri[i])
     return sum_r/common_rating_num
 
+
+def rmse(prediction, ground_truth):
+    """
+    data structure is numpy array
+    """
+    prediction = prediction[ground_truth.nonzero()].flatten() 
+    ground_truth = ground_truth[ground_truth.nonzero()].flatten()
+    return sqrt(mean_squared_error(prediction, ground_truth))

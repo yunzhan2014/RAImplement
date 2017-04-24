@@ -89,3 +89,20 @@ def getRecommendedItems(prefs,itemMatch,user):
   rankings.sort( )
   rankings.reverse( )
   return rankings
+
+
+def predict(ratings_nonzeros_list,similarity):
+    result = []
+    for i in ratings_nonzeros_list:
+        temp_list = []
+        for j in similarity:
+            temp_sum = 0
+            for k in i:
+                temp_sum += j[k]
+            temp_list.append(temp_sum)
+        result.append(temp_list)
+    return result
+
+
+
+
