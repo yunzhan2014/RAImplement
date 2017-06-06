@@ -6,12 +6,14 @@ from sklearn.metrics import mean_squared_error
 from math import sqrt
 
 topk_value = 10
+data_root = '/home/elics-lee/acdamicSpace/dataset/ml-1m'
 np.seterr(divide='ignore', invalid='ignore')
-header = ['user_id', 'item_id', 'rating']
+header = ['user_id', 'item_id', 'rating','time']
 # df = pd.read_csv('/home/elics-lee/acdamicSpace/dataset/ml-100k/u.data', sep='\t', names=header)
-df = pd.read_csv('/home/elics-lee/opt/node2vec/graph/FilmTrust/ratings.txt', sep=' ', names=header)
+df = pd.read_csv('%s/ratings.dat' %data_root, sep='::', names=header)
 n_users = df.user_id.unique().shape[0]
-n_items = df.item_id.unique().shape[0]
+#n_items = df.item_id.unique().shape[0]
+n_items = df.item_id.max()
 print('Number of users = ' + str(n_users) + ' | Number of movies = ' + str(n_items))
 
 train_data, test_data = train_test_split(df, test_size=0.2)
