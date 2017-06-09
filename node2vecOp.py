@@ -50,24 +50,29 @@ def construct_dict(data):
         item_dict.setdefault(row[2], []).append(row[1])
     return user_dict, item_dict
 
-
+t_l = []
 def evaluation(topk_dict, test_dict, k_val, test_dict_num):
     relevant_num = 0
     topk_dict_num = len(topk_dict) * k_val
-
+    ncrr = 0
+    count = 0
     for key, value in topk_dict.items():
         # rank = 0
         if key in test_dict:
             overlap_set = set(value).intersection(test_dict[key])
             row_overlap_num = len(overlap_set)
-            relevant_num += row_overlap_num
-            # for i in overlap_set:
-            #    rank += ((i/value.index(i)) for i in overlap_set)
+            if row_overlap_num != 0:
+                count += 1
+                relevant_num += row_overlap_num
+                rank_index = [1 / (1 + value.index(s)) for s in overlap_set]
+                idel_crr = sum(1/np.arange(1,row_overlap_num+1))
+                ncrr += sum(rank_index)/idel_crr
+                t_l.append(row_overlap_num)
 
     print('relevant num:' + str(relevant_num))
     print('topk_dict_num:' + str(topk_dict_num))
     print('test_dict_num:' + str(test_dict_num))
-
+    print('ncrr:%.5f' %(ncrr/count))
     precision = relevant_num / topk_dict_num
     recall = relevant_num / test_dict_num
     return precision, recall
@@ -80,30 +85,16 @@ def filter_rating(data_matrix, data_dict):
     return filter_matrix
 
 
-##
 header = ['userId', 'itemId', 'ratings']
 
-# dataset_root = '/home/elics-lee/acdamicSpace/dataset/ml-1m'
-# dataset_root = '/home/elics-lee/acdamicSpace/dataset/ml-1m'
-# dataset_root = '/home/elics-lee/acdamicSpace/dataset/ml-1m'
-dataset_root = '/home/elics-lee/acdamicSpace/dataset/FilmTrust'
+dataset_root = '/home/elics-lee/acdamicSpace/dataset/ciao'
 
 train_data = pd.read_csv("%s/graph/train.csv" % dataset_root, sep=' ', names=header)
 test_data = pd.read_csv('%s/graph/test.csv' % dataset_root, sep=' ', names=header)
-topk_value = 30
-user_num = 1508
+topk_value = 10
+user_num = train_data.userId.max()
 
-emb_file = '%s/emb/emb3.txt' % dataset_root
-
-# emb_file = 'emb/filmtrustK10WalkL30.emb'
-# emb_file = 'emb/filmtrustK10WalkL120.emb'
-# emb_file = 'emb/filmtrustK10WalkL160.emb'
-# emb_file = 'emb/filmtrustK10.emb'
-# emb_file = 'emb/filmtrustK30.emb'
-# emb_file = 'emb/filmtrustK60.emb'
-# emb_file = 'emb/filmtrustK128.emb'
-# emb_file = 'emb/filmtrustK15.emb'
-# emb_file = 'emb/filmtrustK8.emb'
+emb_file = '%s/emb/emb.txt' % dataset_root
 
 sim_matrix, label_index = load_DataFrame(emb_file)
 item_matrix, user_matrix = matrix_split(sim_matrix, user_num)
