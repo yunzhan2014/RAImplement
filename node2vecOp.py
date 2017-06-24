@@ -18,6 +18,7 @@ def cv_data(source_data, rate=0.2):
     data = pd.read_csv(source_data, sep=' ', header=None, names=header)
     user_num = data.userId.unique().shape[0]
     data.itemId = data.itemId + user_num
+    data.ratings = data.ratings / 5
     train_data, test_data = train_test_split(data, test_size=rate)
     return train_data, test_data
 
@@ -41,6 +42,27 @@ def load_DataFrame(file):
     return sim_matrix, label_index
 
 
+def similarity_matrix(file, user_numbers):
+    """
+    加载文件，同时计算出相似度矩阵
+    :param file: 要加载文件的路进
+    :return:
+    """
+    with open(file) as f:
+        table = pd.read_table(f, sep=' ', header=None, index_col=0, names=None, lineterminator='\n')
+    table = table.sort_index(axis=0)
+    label_index = np.asarray(table.index)
+    # table = table.abs()
+    table = (table - table.min()) / (table.max() - table.min())
+    # table = (table - table.mean()) / table.std()
+    user_table = table[:user_numbers]
+    item_table = table[user_numbers:]
+    sim_matrix = pairwise.cosine_similarity(user_table, item_table)
+    sim_matrix = np.asarray(sim_matrix)
+    sim_matrix = pd.DataFrame(sim_matrix, index=label_index[:user_numbers], columns=label_index[user_numbers:])
+    return sim_matrix
+
+
 def load_DataFrame2(file):
     """
     针对节点数较多的矩阵所导致的相似度矩阵计算困难的情况进行处理
@@ -57,16 +79,35 @@ def load_DataFrame2(file):
     # table = (table - table.mean()) / table.std()
     s = np.asarray(table)
     pniece_s = np.array_split(s, 4)
-    row_sim_narray = np.array([], dtype=float).reshape(len(pniece_s[1]) + 1, 0)
-    full_sim_narray = np.array([], dtype=None).reshape(0, len(pniece_s[1]))
+    full_sim_narray = np.array([], dtype=None).reshape(0, len(s))
     for i in pniece_s:
+        print(count)
+        row_sim_narray = np.array([], dtype=float).reshape(len(pniece_s[count]), 0)
         for j in pniece_s:
-            count += 1
-            print(count)
+            print("row_array initialize shape is {0}".format(np.shape(row_sim_narray)))
             pniece_sim_narray = pairwise.cosine_similarity(i, j)
-            # row_sim_narray = np.hstack((pniece_sim_narray,row_sim_narray))
+            print("sim_array shape is {0}".format(np.shape(pniece_sim_narray)))
+            row_sim_narray = np.hstack((pniece_sim_narray, row_sim_narray))
+            del pniece_sim_narray
+            print("row_sim_array shape is {0}".format(np.shape(row_sim_narray)))
+        print("full_array initialize shape is {0}".format(np.shape(full_sim_narray)))
+        full_sim_narray = np.vstack((full_sim_narray, row_sim_narray))
+        del row_sim_narray
+        count += 1
 
-    return pniece_s, pniece_sim_narray
+    return pniece_s, full_sim_narray
+
+
+def large_graph_simlarity_compute(file, user_num):
+    with open(file) as f:
+        table = pd.read_table(f, sep=' ', header=None, index_col=0, names=None, lineterminator='\n')
+    table = table.sort_index(axis=0)
+    label_index = np.asarray(table.index)
+    # table = table.abs()
+    table = (table - table.min()) / (table.max() - table.min())
+    # table = (table - table.mean()) / table.std()
+    user_vector = table[0]
+    return table
 
 
 def matrix_split(sim_matrix, user_num):
@@ -110,6 +151,12 @@ def construct_dict(data):
 
 
 def filter_rating(data_matrix, data_dict):
+    """
+    过滤掉训练集里面已有的关联的评分(这里最好设置一个阈值,需要么？？)
+    :param data_matrix:
+    :param data_dict:
+    :return:
+    """
     filter_matrix = data_matrix.copy()
     for key, value in data_dict.items():
         filter_matrix.loc[[key], value] = 0
@@ -152,33 +199,38 @@ def evaluation(topk_dict, test_dict, k_val):
     return precision, recall
 
 
-header = ['userId', 'itemId', 'ratings']  # 三元组的属性名称
+def main():
+    header = ['userId', 'itemId', 'ratings']  # 三元组的属性名称
 
-dataset_root = '/home/elics-lee/acdamicSpace/dataset/ciao'  # 运行的时候输入本地路径
+    dataset_root = '/home/elics-lee/acdamicSpace/dataset/ciao'  # 运行的时输入本地路径
 
-train_data = pd.read_csv("%s/graph/train.csv" % dataset_root, sep=' ', names=header)
-test_data = pd.read_csv('%s/graph/test.csv' % dataset_root, sep=' ', names=header)  # 把训练集和测试集导入到内存当中
-topk_value = 10
-user_num = train_data.userId.max()
+    train_data = pd.read_csv("%s/graph/train.csv" % dataset_root, sep=' ', names=header)
+    test_data = pd.read_csv('%s/graph/test.csv' % dataset_root, sep=' ', names=header)  # 把训练集和测试集导入到内存当中
+    topk_value = 10
+    user_num = train_data.userId.max()
 
-emb_file = '%s/emb/emb.txt' % dataset_root
+    emb_file = '%s/emb/emb.txt' % dataset_root
 
-s, index_label = load_DataFrame2(emb_file)
-# sim_matrix, label_index = load_DataFrame(emb_file)
-# item_matrix, user_matrix = matrix_split(sim_matrix, user_num) # 分别得到用户-物品和物品-用户的相似度矩阵
-# user_dict_train, item_dict_train = construct_dict(train_data)
-# user_dict_test, item_dict_test = construct_dict(test_data) # 分别得到基于用户和基于物品的测试集合
+    # s, index_label = load_DataFrame2(emb_file)
+    # sim_matrix, label_index = load_DataFrame(emb_file)
+    user_matrix = similarity_matrix(emb_file, user_num)
+    item_matrix = user_matrix.T
+    user_dict_train, item_dict_train = construct_dict(train_data)
+    user_dict_test, item_dict_test = construct_dict(test_data)  # 分别得到基于用户和基于物品的测试集合
 
-# filter_user_matrix = filter_rating(user_matrix, user_dict_train)
-# filter_item_matrix = filter_rating(item_matrix, item_dict_train)  # 分别对用户-物品和物品-用户的相似度矩阵剔除train data当中集合
+    filter_user_matrix = filter_rating(user_matrix, user_dict_train)
+    filter_item_matrix = filter_rating(item_matrix, item_dict_train)  # 分别对用户-物品和物品-用户的相似度矩阵剔除train data当中集合
 
-# user_top_list = top_k_list(filter_user_matrix, topk_value)
-# item_top_list = top_k_list(filter_item_matrix, topk_value)  # 分别得到基于用户和项目的物品的topK推荐列表
+    user_top_list = top_k_list(filter_user_matrix, topk_value)
+    item_top_list = top_k_list(filter_item_matrix, topk_value)  # 分别得到基于用户和项目的物品的topK推荐列表
 
-# user_precision, user_recall = evaluation(user_top_list, user_dict_test, topk_value)   # 分别得到基于用户和项目的物品的topK推荐列表的评价指标
-# item_precision, item_recall = evaluation(item_top_list, item_dict_test, topk_value)
+    user_precision, user_recall = evaluation(user_top_list, user_dict_test, topk_value)  # 分别得到基于用户和项目的物品的topK推荐列表的评价指标
+    item_precision, item_recall = evaluation(item_top_list, item_dict_test, topk_value)
 
-# print('User-based embeding Precision: %.5f' % (user_precision))    # 打印输出结果
-# print('User-based embeding recall: %.5f' % (user_recall))
-# print('Item-based embeding Precision: %.5f' % (item_precision))
-# print('Item-based embeding recall: %.5f' % (item_recall))
+    print('User-based embeding Precision: %.5f' % (user_precision))  # 打印输出结果
+    print('User-based embeding recall: %.5f' % (user_recall))
+    print('Item-based embeding Precision: %.5f' % (item_precision))
+    print('Item-based embeding recall: %.6f' % (item_recall))
+
+if __name__ == "__main__":
+    main()
