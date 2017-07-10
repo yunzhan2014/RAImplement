@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from sklearn.metrics import pairwise
 from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KDTree
 from scipy.spatial.distance import cosine
 
 
@@ -12,8 +13,8 @@ def cv_data(source_data, rate=0.2):
     :param rate:
     :return:
     """
-    # header = ['userId', 'itemId', 'ratings','time']
-    header = ['userId', 'itemId', 'ratings']
+    # header = ['userid', 'itemid', 'ratings','time']
+    header = ['userid', 'itemid', 'ratings']
 
     data = pd.read_csv(source_data, sep=' ', header=None, names=header)
     user_num = data.userId.unique().shape[0]
@@ -98,7 +99,7 @@ def load_DataFrame2(file):
     return pniece_s, full_sim_narray
 
 
-def large_graph_simlarity_compute(file, user_num):
+def large_graph_similarity_compute(file, user_num):
     with open(file) as f:
         table = pd.read_table(f, sep=' ', header=None, index_col=0, names=None, lineterminator='\n')
     table = table.sort_index(axis=0)
@@ -108,6 +109,19 @@ def large_graph_simlarity_compute(file, user_num):
     # table = (table - table.mean()) / table.std()
     user_vector = table[0]
     return table
+
+
+def kd_tree_similarity(file, user_numbers, k_value):
+    with open(file) as f:
+        table = pd.read_table(f, sep=' ', header=None, index_col=0, names=None, lineterminator='\n')
+    table = table.sort_index(axis=0)
+    label_index = np.asarray(table.index)
+    tree = KDTree(table, leaf_size=user_numbers)
+    result = dict()
+    for i in label_index:
+        dist, ind = tree.query(table.loc[i], k=k_value)
+        result[i] = [label_index[j] for j in ind[0]]
+    return result
 
 
 def matrix_split(sim_matrix, user_num):
@@ -159,8 +173,28 @@ def filter_rating(data_matrix, data_dict):
     """
     filter_matrix = data_matrix.copy()
     for key, value in data_dict.items():
-        filter_matrix.loc[[key], value] = 0
+        if key in filter_matrix.index:
+            row_list = list(filter_matrix.loc[key])
+            list_intersection = set(value).intersection(row_list)
+            filter_matrix.loc[[key], list_intersection] = 0
     return filter_matrix
+
+
+def filter_kd_tree(neighbor_list, data_dict):
+    """
+    对采用kd tree方式的top list进行训练集的筛选和过滤
+    :param neighbor_list:
+    :param data_dict:
+    :return:
+    """
+    result = dict()
+    for key, value in data_dict.items():
+        if key in neighbor_list:
+            row_list = neighbor_list[key]
+            list_intersection = set(value).intersection(row_list)
+            l = [x for x in value if x not in list_intersection]
+            result[key] = l
+    return result
 
 
 def evaluation(topk_dict, test_dict, k_val):
@@ -202,19 +236,21 @@ def evaluation(topk_dict, test_dict, k_val):
 def main():
     header = ['userId', 'itemId', 'ratings']  # 三元组的属性名称
 
-    dataset_root = '/home/elics-lee/acdamicSpace/dataset/ciao'  # 运行的时输入本地路径
+    dataset_root = '/home/elics-lee/acdamicSpace/dataset/FilmTrust'  # 运行的时输入本地路径
 
     train_data = pd.read_csv("%s/graph/train.csv" % dataset_root, sep=' ', names=header)
     test_data = pd.read_csv('%s/graph/test.csv' % dataset_root, sep=' ', names=header)  # 把训练集和测试集导入到内存当中
     topk_value = 10
     user_num = train_data.userId.max()
 
-    emb_file = '%s/emb/emb.txt' % dataset_root
+    emb_file = '%s/emb/emb9.txt' % dataset_root
 
     # s, index_label = load_DataFrame2(emb_file)
-    # sim_matrix, label_index = load_DataFrame(emb_file)
-    user_matrix = similarity_matrix(emb_file, user_num)
-    item_matrix = user_matrix.T
+    sim_matrix, label_index = load_DataFrame(emb_file)
+    # user_matrix = similarity_matrix(emb_file, user_num)
+    # item_matrix = user_matrix.T
+    item_matrix, user_matrix = matrix_split(sim_matrix, user_num)
+
     user_dict_train, item_dict_train = construct_dict(train_data)
     user_dict_test, item_dict_test = construct_dict(test_data)  # 分别得到基于用户和基于物品的测试集合
 
@@ -231,6 +267,34 @@ def main():
     print('User-based embeding recall: %.5f' % (user_recall))
     print('Item-based embeding Precision: %.5f' % (item_precision))
     print('Item-based embeding recall: %.6f' % (item_recall))
+
+
+def neighbor():
+    header = ['userId', 'itemId', 'ratings']  # 三元组的属性名称
+
+    dataset_root = '/home/elics-lee/acdamicSpace/dataset/FilmTrust'  # 运行的时输入本地路径
+
+    train_data = pd.read_csv("%s/graph/train.csv" % dataset_root, sep=' ', names=header)
+    test_data = pd.read_csv('%s/graph/test.csv' % dataset_root, sep=' ', names=header)  # 把训练集和测试集导入到内存当中
+    topk_value = 10
+    user_num = train_data.userId.max()
+
+    emb_file = '%s/emb/emb9.txt' % dataset_root
+    user_dict_train, item_dict_train = construct_dict(train_data)
+    user_dict_test, item_dict_test = construct_dict(test_data)  # 分别得到基于用户和基于物品的测试集合
+
+    top_list = kd_tree_similarity(emb_file, user_num, topk_value)
+    user_top_list = top_list[:user_num]
+    item_top_list = top_list[user_num + 1:]
+
+    user_precision, user_recall = evaluation(user_top_list, user_dict_test, topk_value)  # 分别得到基于用户和项目的物品的topK推荐列表的评价指标
+    item_precision, item_recall = evaluation(item_top_list, item_dict_test, topk_value)
+
+    print('User-based embeding Precision: %.5f' % (user_precision))  # 打印输出结果
+    print('User-based embeding recall: %.5f' % (user_recall))
+    print('Item-based embeding Precision: %.5f' % (item_precision))
+    print('Item-based embeding recall: %.6f' % (item_recall))
+
 
 if __name__ == "__main__":
     main()
