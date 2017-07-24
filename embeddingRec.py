@@ -11,12 +11,10 @@ class Node2vec(object):
     embedding_file等一系列的属性信息
     """
     header = ['userId', 'itemId', 'ratings']
-    data_set_path = '/home/elics-lee/academicSpace/dataSet/FilmTrust'
-    result_file = '/home/elics-lee/academicSpace/researchLog/node2vec.result'
+    data_set_path = '/home/elics-lee/academicSpace/dataSet/ciao'
 
     def __init__(self, embedding_file, top_k_value):
         """
-
         :param self:
         :param embedding_file:
         :return:
@@ -128,7 +126,7 @@ def kd_tree_similarity(file, user_numbers, top_k_value, distance='euclidean'):
     """
     使用kd tree寻找最近邻"
     :param file:
-    :param user_numbers:
+    :param user_numbers: 作为kd tree的leaf_size
     :param top_k_value:
     :param distance: 选择kd tree所采用的distance类型
     :return:
@@ -136,14 +134,21 @@ def kd_tree_similarity(file, user_numbers, top_k_value, distance='euclidean'):
     with open(file) as f:
         table = pd.read_table(f, sep=' ', header=None, index_col=0, names=None, lineterminator='\n')
     table = table.sort_index(axis=0)
+    table = table.div(np.sqrt(table.pow(2).sum()), axis=0)
+    table = table.fillna(0)
     label_index = np.asarray(table.index)
     tree = KDTree(table, metric=distance, leaf_size=user_numbers)
     result = dict()
     for i in label_index:
-        q_list = table.loc[i].reshape(1, -1)
-        dist, ind = tree.query(q_list, k=top_k_value)
+        # q_list = table.loc[i].reshape(1, -1)
+        q_list = np.reshape(table.loc[i], (1, -1))
+        dist, ind = tree.query(q_list, k=top_k_value * 35)
         result[i] = [label_index[j] for j in ind[0]]
     return result
+
+
+def cosine(x, y):
+    return pairwise.cosine_distances(x, y)
 
 
 def filter_kd_tree(neighbor_list, data_dict):
@@ -276,8 +281,8 @@ def evaluation(top_dict, test_dict, k_val):
 
 
 def main():
-    node2vec = Node2vec("emb1.txt", 10)
-    base_cosine_similarity_list(node2vec)
+    node2vec = Node2vec("embl_1.txt", 40)
+    # base_cosine_similarity_list(node2vec)
     base_kd_tree_similarity_list(node2vec)
 
 
