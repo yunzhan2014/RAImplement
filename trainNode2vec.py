@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import loadData as lD
 from subprocess import call
 

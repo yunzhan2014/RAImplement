@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import numpy as np
 import pandas as pd
 from sklearn.neighbors import KDTree
@@ -12,7 +13,7 @@ class Node2vec(object):
     embedding_file等一系列的属性信息
     """
     header = ['userId', 'itemId', 'ratings']
-    data_set_path = '/home/elics-lee/academicSpace/dataSet/FilmTrust'
+    data_set_path = '/home/elics-lee/academicSpace/dataSet/ciao'
 
     def __init__(self, embedding_file, top_k_value):
         """
@@ -55,8 +56,8 @@ def base_cosine_similarity_list(embed_entity):
     user_top_list = top_k_list(filter_user_matrix, top_k_value)
     item_top_list = top_k_list(filter_item_matrix, top_k_value)
     # 分别得到基于用户和项目的物品的topK推荐列表的评价指标
-    user_result = evaluation(user_top_list, user_dict_test, top_k_value)
-    item_result = evaluation(item_top_list, item_dict_test, top_k_value)
+    user_result = evaluation(user_top_list, user_dict_test)
+    item_result = evaluation(item_top_list, item_dict_test)
     # 把评估的结果写入到result文件当中
     result_file = "%s/result/result.csv" % data_set_path
     result_list = list()
@@ -86,7 +87,7 @@ def base_kd_tree_similarity_list(embed_entity):
     emb_file = embed_entity.emb_file
     user_num = embed_entity.user_num
     top_k_value = embed_entity.top_k_value
-    print("这一组的top k value 是：%d" % top_k_value)
+    # print("这一组的top k value 是：%d" % top_k_value)
     # 分别得到基于用户和基于物品的训练集合与测试集合
     user_dict_train, item_dict_train = construct_dict(train_data)
     user_dict_test, item_dict_test = construct_dict(test_data)
@@ -102,8 +103,8 @@ def base_kd_tree_similarity_list(embed_entity):
     user_top_list = filter_kd_tree(user_top_list, user_dict_train, top_k_value)
     item_top_list = filter_kd_tree(item_top_list, item_dict_train, top_k_value)
     # 分别得到基于用户和项目的物品的topK推荐列表的评价指标
-    user_result = evaluation(user_top_list, user_dict_test, top_k_value)
-    item_result = evaluation(item_top_list, item_dict_test, top_k_value)
+    user_result = evaluation(user_top_list, user_dict_test)
+    item_result = evaluation(item_top_list, item_dict_test)
     # 把评估的结果写入到result文件当中
     result_file = "%s/result/result.csv" % data_set_path
     result_list = list()
@@ -175,7 +176,7 @@ def filter_kd_tree(top_dict, train_dict, top_k_value):
             list_intersection = set(value).intersection(row_list)
             l = [x for x in row_list if x not in list_intersection]
             result[key] = l[0:top_k_value]
-            print("top %d in user or item %d" % (len(value), key))
+            # print("top %d in user or item %d" % (len(value), key))
     return result
 
 
@@ -254,23 +255,22 @@ def filter_rating(data_matrix, data_dict):
     return filter_matrix
 
 
-def evaluation(top_dict, test_dict, k_val):
+def evaluation(top_dict, test_dict):
     """
     测试topK列表的推荐效果
     :param top_dict:
     :param test_dict:
-    :param k_val:
     :return: precision, recall, ncrr
     """
     relevant_num = 0
     t_l = []
     recall = 0
-    top_dict_num = len(top_dict) * k_val
+    top_dict_num = 0
     ncrr = 0
     count = 0
     result = dict()
     for key, value in top_dict.items():
-        # rank = 0
+        top_dict_num += len(value)
         if key in test_dict:
             overlap_set = set(value).intersection(test_dict[key])
             row_overlap_num = len(overlap_set)
@@ -282,7 +282,6 @@ def evaluation(top_dict, test_dict, k_val):
                 ncrr += sum(rank_index) / ideal_crr
                 t_l.append(row_overlap_num)
             recall += row_overlap_num / len(test_dict[key])
-
     print('relevant num:' + str(relevant_num))
     print('top_k_dict_num:' + str(top_dict_num))
     result['precision'] = relevant_num / top_dict_num
@@ -292,13 +291,13 @@ def evaluation(top_dict, test_dict, k_val):
 
 
 def main():
-    data_set_path = '/home/elics-lee/academicSpace/dataSet/FilmTrust/emb/'
+    data_set_path = '/home/elics-lee/academicSpace/dataSet/ciao/emb/'
     embedding_list = listdir(data_set_path)
     counter = 0
     for embedding_file in embedding_list:
-        print("This is %d loop, embedding file is %s" %(counter, embedding_file))
-        node2vec = Node2vec(embedding_file, 10)
-    # base_cosine_similarity_list(node2vec)
+        print("This is %d loop, embedding file is %s" % (counter, embedding_file))
+        counter += 1
+        node2vec = Node2vec(embedding_file, 50)
         base_kd_tree_similarity_list(node2vec)
 
 
