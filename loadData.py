@@ -1,5 +1,32 @@
-######################load dataset####################
-def loadRating(path, main_keys="item", split_sig='\t'):
+"""
+   module:进行数据集加载和交叉验证分集
+
+   Aauthor： yunzhan
+
+   Data: 6/8 2017
+
+"""
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
+
+def cv_data(source_data, rate=0.2):
+    """
+    对数据集进行
+    :param source_data: ratting信息的文件
+    :param rate: 选择训练集与测试集的比例
+    :return: 返回训练集与测试集
+    """
+    # header = ['userId', 'itemId', 'ratings','time']
+    header = ['userId', 'itemId', 'ratings']
+    data = pd.read_csv(source_data, sep=' ', header=None, names=header)
+    user_num = data.userId.max()
+    data.itemId = data.itemId + user_num
+    train_data, test_data = train_test_split(data, test_size=rate)
+    return train_data, test_data
+
+
+def load_rating(path, main_keys="item", split_sig='\t'):
     # 获得item Id和 UserId 构建存储项目、用户、评分之间关系的数据结构
     setofItem = {}
     count = 0
@@ -18,35 +45,8 @@ def loadRating(path, main_keys="item", split_sig='\t'):
     return setofItem
 
 
-#######################load MovieLens dataset####################
-#def loadMoiveLens(path_item, path_data, main_keys="item", split_sig='\t'):
-#    # 获得item Id和 UserId 构建存储项目、用户、评分之间关系的数据结构
-#    movies = {}
-#    for line in open(path_item):
-#        (id, title) = line.split('|')[0:2]
-#        movies[id] = title
-#
-#    setofItem = {}
-#    count = 0
-#    for line in open(path_data):
-#        (userId, itemId, rating, time) = line.split(split_sig)
-#        if (main_keys == "item"):
-#            setofItem.setdefault(int(itemId), {})
-#            setofItem[int(itemId)][int(userId)] = float(rating)
-#            count = count + 1
-#        else:
-#            setofItem.setdefault(int(userId), {})
-#            setofItem[int(userId)][int(itemId)] = float(rating)
-#            count = count + 1
-#
-#    print(len(setofItem))
-#    return setofItem
-#
-
-#####################load Turst##########################
 def loadTrust(path, split_sig='\t'):
-    trustmatrix = {}
-    ###统计表中有多少个用户
+    trustmatrix = {}  # 统计表中有多少个用户
     count = 0
     lastId = 0
     for line in open(path):
@@ -63,14 +63,6 @@ def loadTrust(path, split_sig='\t'):
     return trustmatrix
 
 
-#########################用二维数组存储Rating矩阵#################
-def rating_nparray():
-    i = 0
-    print(i)
-    return 0
-
-
-################### user average rating ####################
 def averageRating(user_item_dict):
     aver_rating_dict = {}
     for key, sec_dict in user_item_dict.items():
@@ -100,7 +92,7 @@ def delRedundatInfor(path, split_sig='\t', max_num=1508):
     print(len(trustmatrix))
     return trustmatrix
 
-##################### 翻转user item dict ######################
+
 def transformPrefs(prefs):
     result = {}
     for person in prefs:
