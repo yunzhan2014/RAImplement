@@ -24,7 +24,7 @@ def cv_data(source_data, rate=0.2):
     user_num = data.userId.max()
     data.itemId = data.itemId + user_num
     train_data, test_data = train_test_split(data, test_size=rate)
-    return train_data, test_data
+    return train_data, test_data, user_num
 
 
 def load_rating(path, main_keys="item", split_sig='\t'):
@@ -103,3 +103,22 @@ def transformPrefs(prefs):
             # Flip item and person
             result[item][person] = prefs[person][item]
     return result
+
+
+def load_DataFrame(file):
+    """
+    加载文件，同时计算出相似度矩阵
+    :param file: 要加载文件的路进
+    :return:
+    """
+    with open(file) as f:
+        table = pd.read_table(f, sep=' ', header=None, index_col=0, names=None, lineterminator='\n')
+    table = table.sort_index(axis=0)
+    label_index = np.asarray(table.index)
+    # table = table.abs()
+    table = (table - table.min()) / (table.max() - table.min())
+    # table = (table - table.mean()) / table.std()
+    s = np.asarray(table)
+    sim_matrix = pairwise.cosine_similarity(s)
+    sim_matrix = pd.DataFrame(sim_matrix, index=label_index, columns=label_index)
+    return sim_matrix, label_index

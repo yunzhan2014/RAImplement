@@ -1,48 +1,31 @@
 # -*- coding: utf-8 -*-
+from time import time
+from os import path
+
 import numpy as np
 import pandas as pd
-from sklearn.neighbors import KDTree
 from sklearn.metrics import pairwise
-from os import listdir
+from sklearn.neighbors import KDTree
+
+import loadData as lD
+from trainNode2vec import Node2vec
 
 
-class Node2vec(object):
-    """
-    通过node2vec方法生成的低维向量的实体
-    包含train_data,test_data
-    embedding_file等一系列的属性信息
-    """
-    header = ['userId', 'itemId', 'ratings']
-    data_set_path = '/home/elics-lee/academicSpace/dataSet/ciao'
-
-    def __init__(self, embedding_file, top_k_value):
-        """
-        :param self:
-        :param embedding_file:
-        :return:
-        """
-
-        # 把训练集和测试集导入到内存当中
-        self.train_data = pd.read_csv("%s/graph/train.csv" % self.data_set_path, sep=' ', names=self.header)
-        self.test_data = pd.read_csv('%s/graph/test.csv' % self.data_set_path, sep=' ', names=self.header)
-        self.top_k_value = top_k_value
-        self.user_num = self.train_data.userId.max()
-        self.emb_file = '%s/emb/%s' % (self.data_set_path, embedding_file)
-
-
-def base_cosine_similarity_list(embed_entity):
+def base_cosine_similarity_list(node2vec_entity, top_k_value):
     """
     根据余弦相似性得到top list
-    :param embed_entity:
+    :param node2vec_entity:
+    :param top_k_value
     :return:
     """
 
-    data_set_path = embed_entity.data_set_path
-    user_num = embed_entity.user_num
-    train_data = embed_entity.train_data
-    test_data = embed_entity.test_data
-    top_k_value = embed_entity.top_k_value
-    emb_file = embed_entity.emb_file
+    data_set_path = node2vec_entity.data_set_path
+    user_num = node2vec_entity.user_num
+    train_data = node2vec_entity.train_data
+    test_data = node2vec_entity.test_data
+    emb_file = node2vec_entity.emb_file
+
+    top_k_value = top_k_value
     print(emb_file)
     sim_matrix, label_index = cosine_similarity(emb_file)
     item_matrix, user_matrix = matrix_split(sim_matrix, user_num)
@@ -74,19 +57,23 @@ def base_cosine_similarity_list(embed_entity):
     f.close()
 
 
-def base_kd_tree_similarity_list(embed_entity):
+def base_kd_tree_similarity_list(node2vec_entity, top_k_value):
     """
-    对
-    :param embed_entity:
+    :param node2vec_entity:
+    :param top_k_value
     :return:
     """
     # 初始化一些参数
-    data_set_path = embed_entity.data_set_path
-    train_data = embed_entity.train_data
-    test_data = embed_entity.test_data
-    emb_file = embed_entity.emb_file
-    user_num = embed_entity.user_num
-    top_k_value = embed_entity.top_k_value
+    header = ['user', 'item', 'rating']
+    data_set_path = node2vec_entity.source_data_path
+    train_data = node2vec_entity.train_data
+    test_data = node2vec_entity.test_data
+    print(train_data, test_data)
+    train_data = pd.read_csv(train_data, sep=' ', names=header)
+    test_data = pd.read_csv(test_data, sep=' ', names=header)
+    emb_file = node2vec_entity.output_file
+    user_num = node2vec_entity.user_num
+    top_k_value = top_k_value
     # print("这一组的top k value 是：%d" % top_k_value)
     # 分别得到基于用户和基于物品的训练集合与测试集合
     user_dict_train, item_dict_train = construct_dict(train_data)
@@ -130,7 +117,9 @@ def kd_tree_similarity(file, user_numbers, distance='euclidean'):
     :return: dict: id号对应的一系列id
     """
     with open(file) as f:
+        node_num, dimension = f.readline().split()
         table = pd.read_table(f, sep=' ', header=None, index_col=0, names=None, lineterminator='\n')
+    print("Embedding node number is %s, dimension is %s" % (node_num, dimension))
     table = table.sort_index(axis=0)
     # normalize row
     table = table.div(np.sqrt(table.pow(2).sum()), axis=0)
@@ -291,15 +280,37 @@ def evaluation(top_dict, test_dict):
 
 
 def main():
-    data_set_path = '/home/elics-lee/academicSpace/dataSet/ciao/emb/'
-    embedding_list = listdir(data_set_path)
-    counter = 0
-    for embedding_file in embedding_list:
-        print("This is %d loop, embedding file is %s" % (counter, embedding_file))
-        counter += 1
-        node2vec = Node2vec(embedding_file, 50)
-        base_kd_tree_similarity_list(node2vec)
+    # 训练模型参数
+    # d = 10
+    # max_iter = 1
+    # walk_length = 80
+    # n_walks = 80
+    # window_size = 80
+    # ret_p = 1
+    # inout_p = 2
+    model_parameter = ['10', '1', '80', '80', '80', '1', '1']
 
+    # 选定数据集位置,对数据集进行分集
+    source_data_path = "/home/elics-lee/academicSpace/dataSet/ciao"
+    ratings_file = "%s/ratings.txt" % source_data_path
+    # social_file = "%s/trust.txt" % source_data_path
+    train_data, test_data, user_num = lD.cv_data(ratings_file, rate=0.2)
+    train_data_file = "%s/train.csv" % source_data_path
+    test_data_file = "%s/test.csv" % source_data_path
+    train_data.to_csv(train_data_file, sep=" ", index=None, header=None, columns=None)
+    test_data.to_csv(test_data_file, sep=" ", index=None, header=None, columns=None)
+
+    # 模型训练
+    start_time = time
+    model_parameter = [source_data_path] + model_parameter
+    node2vec = Node2vec(user_num, model_parameter)
+    emb_file_name = "%s/emb/dim%s_iter%s_walklen%s_walkper%s_window%s_p%s_q%s.emb" % tuple(model_parameter)
+    if not path.exists(emb_file_name):
+        node2vec.train_model()
+    # # # print("Training Model time is %.2f." % (time() - start_time))
+    # print("model training is over.")
+    # 模型检验
+    base_kd_tree_similarity_list(node2vec, 40)
 
 if __name__ == "__main__":
     main()
