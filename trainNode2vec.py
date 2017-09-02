@@ -33,7 +33,7 @@ class Node2vec(object):
         self.train_data = "%s/train.csv" % self.source_data_path
         self.test_data = "%s/test.csv" % self.source_data_path
         self.user_num = user_numbers
-        self.output_file = "%s/emb/dim%s_iter%s_walklen%s_walkper%s_window%s_p%s_q%s.emb" % tuple(parameter)
+        self.output_file = parameter[8]
 
     def train_model(self):
         args = ["./node2vec", "-i:%s" % self._input_file, "-o:%s" % self.output_file, "-d:%d" % self._d,

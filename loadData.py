@@ -8,6 +8,8 @@
 
 """
 import pandas as pd
+import numpy as np
+from sklearn.metrics import pairwise
 from sklearn.model_selection import train_test_split
 
 
@@ -25,6 +27,27 @@ def cv_data(source_data, rate=0.2):
     data.itemId = data.itemId + user_num
     train_data, test_data = train_test_split(data, test_size=rate)
     return train_data, test_data, user_num
+
+
+def social_merge(rating_data, social_file, user_num):
+    """
+    merge social data on rating data
+    :param rating_data:
+    :param social_file:
+    :param user_num:
+    :return:
+    """
+    # header = ['user_s', 'user_t', 'trust_grade']
+    header = ['userId', 'itemId', 'ratings']
+    social_data = pd.read_csv(social_file, sep=' ', header=None, names=header)
+    # 融合社交信息的几种方式
+    # rating_data.ratings = rating_data.ratings / 5
+    social_data.ratings = social_data.ratings * 5
+    frames = [rating_data, social_data]
+    result = pd.concat(frames)
+    print(result.head())
+    print(result.tail())
+    return result
 
 
 def load_rating(path, main_keys="item", split_sig='\t'):

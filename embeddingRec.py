@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from time import time
 from os import path
 
 import numpy as np
@@ -57,10 +56,11 @@ def base_cosine_similarity_list(node2vec_entity, top_k_value):
     f.close()
 
 
-def base_kd_tree_similarity_list(node2vec_entity, top_k_value):
+def base_kd_tree_similarity_list(node2vec_entity, top_k_value, is_social=True):
     """
     :param node2vec_entity:
     :param top_k_value
+    :param is_social
     :return:
     """
     # 初始化一些参数
@@ -95,7 +95,10 @@ def base_kd_tree_similarity_list(node2vec_entity, top_k_value):
     # 把评估的结果写入到result文件当中
     result_file = "%s/result/result.csv" % data_set_path
     result_list = list()
-    result_list.append("kd_tree")
+    if is_social:
+        result_list.append("social_merge")
+    else:
+        result_list.append("kd_tree")
     result_list.append(str(top_k_value))
     result_list.append("{:06.5f}".format(user_result['precision']))
     result_list.append("{:06.5f}".format(user_result['recall']))
@@ -280,6 +283,8 @@ def evaluation(top_dict, test_dict):
 
 
 def main():
+    is_social = False
+    # is_social = True
     # 训练模型参数
     # d = 10
     # max_iter = 1
@@ -291,26 +296,32 @@ def main():
     model_parameter = ['10', '1', '80', '80', '80', '1', '1']
 
     # 选定数据集位置,对数据集进行分集
-    source_data_path = "/home/elics-lee/academicSpace/dataSet/ciao"
+    source_data_path = "/home/elics-lee/academicSpace/dataSet/epinions"
     ratings_file = "%s/ratings.txt" % source_data_path
-    # social_file = "%s/trust.txt" % source_data_path
     train_data, test_data, user_num = lD.cv_data(ratings_file, rate=0.2)
+
+    if is_social:
+        social_file = "%s/trust.txt" % source_data_path
+        train_data = lD.social_merge(train_data, social_file, user_num)
+
     train_data_file = "%s/train.csv" % source_data_path
     test_data_file = "%s/test.csv" % source_data_path
     train_data.to_csv(train_data_file, sep=" ", index=None, header=None, columns=None)
     test_data.to_csv(test_data_file, sep=" ", index=None, header=None, columns=None)
 
     # 模型训练
-    start_time = time
     model_parameter = [source_data_path] + model_parameter
+    if is_social:
+        emb_file_name = "%s/emb/social_dim%s_iter%s_walklen%s_walkper%s_window%s_p%s_q%s.emb" % tuple(model_parameter)
+    else:
+        emb_file_name = "%s/emb/dim%s_iter%s_walklen%s_walkper%s_window%s_p%s_q%s.emb" % tuple(model_parameter)
+    model_parameter = model_parameter + [emb_file_name]
+    print(model_parameter)
     node2vec = Node2vec(user_num, model_parameter)
-    emb_file_name = "%s/emb/dim%s_iter%s_walklen%s_walkper%s_window%s_p%s_q%s.emb" % tuple(model_parameter)
     if not path.exists(emb_file_name):
         node2vec.train_model()
-    # # # print("Training Model time is %.2f." % (time() - start_time))
-    # print("model training is over.")
     # 模型检验
-    base_kd_tree_similarity_list(node2vec, 40)
+    base_kd_tree_similarity_list(node2vec, 10, is_social)
 
 if __name__ == "__main__":
     main()
