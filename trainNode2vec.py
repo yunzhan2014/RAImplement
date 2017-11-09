@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import multiprocessing
 from subprocess import call
 
 
@@ -39,4 +40,6 @@ class Node2vec(object):
         args = ["./node2vec", "-i:%s" % self._input_file, "-o:%s" % self.output_file, "-d:%d" % self._d,
                 "-l:%d" % self._walkLength, "-r:%d" % self._numWalks, "-k:%d" % self._contextSize,
                 "-e:%d" % self._max_iter, "-p:%f" % self._return_p, "-q:%f" % self._inout_p, "-v", "-dr", "-w"]
-        call(args)
+        process = multiprocessing.Process(target=call, args=(args,))
+        process.start()
+        process.join()

@@ -1,20 +1,21 @@
+from math import sqrt
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.metrics import mean_squared_error
-from math import sqrt
 
 topk_value = 10
-data_root = '/home/elics-lee/acdamicSpace/dataset/ml-1m'
+data_root = '/home/elics-lee/academicSpace/dataSet/ml-1m'
 np.seterr(divide='ignore', invalid='ignore')
-header = ['user_id', 'item_id', 'rating','time']
+header = ['user_id', 'item_id', 'rating', 'time']
 # df = pd.read_csv('/home/elics-lee/acdamicSpace/dataset/ml-100k/u.data', sep='\t', names=header)
-df = pd.read_csv('%s/ratings.dat' %data_root, sep='::', names=header)
+df = pd.read_csv('%s/ratings.dat' % data_root, sep='::', names=header)
 n_users = df.user_id.unique().shape[0]
-#n_items = df.item_id.unique().shape[0]
+# n_items = df.item_id.unique().shape[0]
 n_items = df.item_id.max()
-print('Number of users = ' + str(n_users) + ' | Number of movies = ' + str(n_items))
+print('Number of users = ' + str(n_users) +
+      ' | Number of movies = ' + str(n_items))
 
 train_data, test_data = train_test_split(df, test_size=0.2)
 
@@ -50,8 +51,10 @@ def rating_predict(ratings, similarity, type='user'):
     return pred
 
 
-user_prediction = rating_predict(train_data_matrix, user_similarity, type='user')
-item_prediction = rating_predict(train_data_matrix, item_similarity, type='item')
+user_prediction = rating_predict(
+    train_data_matrix, user_similarity, type='user')
+item_prediction = rating_predict(
+    train_data_matrix, item_similarity, type='item')
 
 
 def top_k_list(prediction_matrix, k_value):
@@ -114,18 +117,12 @@ print('Item-based CF RMSE: ' + str(rmse(item_prediction, test_data_matrix)))
 item_top_list = top_k_list(item_prediction, topk_value)
 user_top_list = top_k_list(user_prediction, topk_value)
 user_dict_test, item_dict_test = construct_dict(test_data)
-user_precision, user_recall = evaluation(item_top_list, user_dict_test, topk_value, len(test_data))
-item_precision, item_recall = evaluation(item_top_list, item_dict_test, topk_value, len(test_data))
+user_precision, user_recall = evaluation(
+    item_top_list, user_dict_test, topk_value, len(test_data))
+item_precision, item_recall = evaluation(
+    item_top_list, item_dict_test, topk_value, len(test_data))
 
-print('User-based CF Precision: %.5f' %(user_precision))
-print('User-based CF recall: %.5f' %(user_recall))
-print('Item-based CF Precision: %.5f' %(item_precision))
-print('Item-based CF recall: %.5f' %(item_recall))
-# import scipy.sparse as sp
-# from scipy.sparse.linalg import svds
-#
-# get SVD components from train matrix. Choose k.
-# u, s, vt = svds(train_data_matrix, k=20)
-# s_diag_matrix = np.diag(s)
-# X_pred = np.dot(np.dot(u, s_diag_matrix), vt)
-# print('User-based CF MSE: ' + str(rmse(X_pred, test_data_matrix)))
+print('User-based CF Precision: %.5f' % (user_precision))
+print('User-based CF recall: %.5f' % (user_recall))
+print('Item-based CF Precision: %.5f' % (item_precision))
+print('Item-based CF recall: %.5f' % (item_recall))

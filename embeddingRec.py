@@ -3,6 +3,7 @@ from os import path
 
 import numpy as np
 import pandas as pd
+import multiprocessing
 from sklearn.metrics import pairwise
 from sklearn.neighbors import KDTree
 
@@ -282,7 +283,7 @@ def evaluation(top_dict, test_dict):
     return result
 
 
-def main():
+def main(data_set):
     is_social = False
     # is_social = True
     # 训练模型参数
@@ -293,16 +294,16 @@ def main():
     # window_size = 80
     # ret_p = 1
     # inout_p = 2
-    model_parameter = ['10', '1', '80', '80', '80', '1', '1']
+    model_parameter = ['9', '1', '80', '80', '80', '1', '1']
 
     # 选定数据集位置,对数据集进行分集
-    source_data_path = "/home/elics-lee/academicSpace/dataSet/epinions"
+    source_data_path = "/home/elics-lee/academicSpace/dataSet/%s" % data_set
     ratings_file = "%s/ratings.txt" % source_data_path
     train_data, test_data, user_num = lD.cv_data(ratings_file, rate=0.2)
 
     if is_social:
         social_file = "%s/trust.txt" % source_data_path
-        train_data = lD.social_merge(train_data, social_file, user_num)
+        train_data = lD.social_merge(train_data, social_file)
 
     train_data_file = "%s/train.csv" % source_data_path
     test_data_file = "%s/test.csv" % source_data_path
@@ -321,7 +322,9 @@ def main():
     if not path.exists(emb_file_name):
         node2vec.train_model()
     # 模型检验
-    base_kd_tree_similarity_list(node2vec, 10, is_social)
+    base_kd_tree_similarity_list(node2vec, 125, is_social)
 
 if __name__ == "__main__":
+    pool = multiprocessing.Pool()
+    pool.map(main, ['ciao', 'FilmTrust', 'epinions'])
     main()
